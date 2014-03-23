@@ -1,13 +1,42 @@
-# Compiled Object files
-*.slo
-*.lo
-*.o
+*.py[cod]
 
-# Compiled Dynamic libraries
+# C extensions
 *.so
-*.dylib
 
-# Compiled Static libraries
-*.lai
-*.la
-*.a
+# Java & Eclipse
+.metadata
+.classpath
+.project
+._*
+
+# Packages
+*.egg
+*.egg-info
+dist
+build
+eggs
+parts
+bin
+var
+sdist
+develop-eggs
+.installed.cfg
+lib
+lib64
+__pycache__
+
+# Installer logs
+pip-log.txt
+
+# Unit test / coverage reports
+.coverage
+.tox
+nosetests.xml
+
+# Translations
+*.mo
+
+# Mr Developer
+.mr.developer.cfg
+.project
+.pydevproject

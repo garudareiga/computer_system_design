@@ -30,10 +30,16 @@
  */
 package edu.berkeley.cs162;
 
-import java.io.FilterInputStream;
-import java.io.InputStream;
-import java.net.Socket;
+import java.io.*;
+import java.net.*;
 
+// Add by Ray
+import javax.xml.parsers.*;
+import javax.xml.transform.*;
+import javax.xml.transform.dom.*;
+import javax.xml.transform.stream.StreamResult;
+
+import org.w3c.dom.*;
 
 /**
  * This is the object that is used to generate messages the XML based messages
@@ -89,10 +95,25 @@ public class KVMessage {
      */
     public KVMessage(String msgType) throws KVException {
         // TODO: implement me
+    	if (!(msgType.equals("getreq") ||
+    		msgType.equals("putreq") ||
+    		msgType.equals("delreq") ||
+    		msgType.equals("resp")))
+    		throw new KVException(new KVMessage("resp", "Message format incorrect"));
+    	
+    	this.msgType = msgType;
     }
 
     public KVMessage(String msgType, String message) throws KVException {
         // TODO: implement me
+    	if (!(msgType.equals("getreq") ||
+        	msgType.equals("putreq") ||
+        	msgType.equals("delreq") ||
+        	msgType.equals("resp")))
+        	throw new KVException(new KVMessage("resp", "Message format incorrect"));
+    	
+    	this.msgType = msgType;
+    	this.message = message;
     }
 
      /***
@@ -105,6 +126,51 @@ public class KVMessage {
      */
     public KVMessage(Socket sock) throws KVException {
          // TODO: implement me
+    	try {
+    		NoCloseInputStream is = new NoCloseInputStream(sock.getInputStream());
+    		DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
+    		DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
+    		Document doc = docBuilder.parse(is);
+    		
+    		// optinal normalize:
+    		// http://stackoverflow.com/questions/13786607/normalization-in-dom-parsing-with-java-how-does-it-work
+    		doc.getDocumentElement().normalize();
+    		
+    		// KVMessage
+    		NodeList kvmsgNodeList = doc.getElementsByTagName("KVMessage");
+    		if (kvmsgNodeList.getLength() > 0) {
+	    		Node kvmsgNode = kvmsgNodeList.item(0);
+	    		if (kvmsgNode.getNodeType() == Node.ELEMENT_NODE) {
+	    			Element kvmsgElement = (Element) kvmsgNode;
+	    			String msgType = kvmsgElement.getAttribute("type");
+	    			if (msgType == null)
+	    				throw new KVException(new KVMessage("resp", "Message format incorrect"));
+	    			
+	        		// Key
+	        		NodeList keyNodeList = kvmsgElement.getElementsByTagName("Key");
+	        		if (keyNodeList.getLength() > 0) {
+	        			this.key = keyNodeList.item(0).getTextContent();
+	        		}
+	        		// Value
+	        		NodeList valueNodeList = kvmsgElement.getElementsByTagName("Value");
+	        		if (valueNodeList.getLength() > 0) {
+	        			this.value = valueNodeList.item(0).getTextContent();
+	        		}
+	        		// Message
+	        		NodeList msgNodeList = kvmsgElement.getElementsByTagName("Message");
+	        		if (msgNodeList.getLength() > 0) {
+	        			this.message = valueNodeList.item(0).getTextContent();
+	        		}
+	    		}
+    		} else {
+    			throw new KVException(new KVMessage("resp", "Message format incorrect"));
+    		}
+    	} catch (IOException e) {
+    		throw new KVException(new KVMessage("resp", "Network Error: Could not receive data"));
+    		//e.printStackTrace();
+    	} catch (Exception e) {
+    		throw new KVException(new KVMessage("resp", "XML Error: Received unparseable message"));
+    	}
     }
 
     /**
@@ -113,11 +179,56 @@ public class KVMessage {
      * @throws KVException if not enough data is available to generate a valid KV XML message
      */
     public String toXML() throws KVException {
+    	// TODO: implement me
+    	try {
+    		DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
+    		DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
+    		
+    		Document doc = docBuilder.newDocument();
+    		// root: KVMessage
+    		Element kvmsg = doc.createElement("KVMessage");
+    		kvmsg.setAttribute("type", this.msgType);
+    		doc.appendChild(kvmsg);
+    		// Key element
+    		if (this.key != null) {
+    			Element keyElement = doc.createElement("Key");
+    			keyElement.appendChild(doc.createTextNode(this.key));
+    			kvmsg.appendChild(keyElement);
+    		}
+    		// Value element
+    		if (this.value != null) {
+    			Element valueElement = doc.createElement("Value");
+    			valueElement.appendChild(doc.createTextNode(this.value));
+    			kvmsg.appendChild(valueElement);
+    		}
+    		// Message element
+    		if (this.message != null) {
+    			Element msgElement = doc.createElement("Message");
+    			msgElement.appendChild(doc.createTextNode(this.message));
+    			kvmsg.appendChild(msgElement);
+    		}
+    		
+    		TransformerFactory transformerFactory = TransformerFactory.newInstance();
+    		Transformer transformer = transformerFactory.newTransformer();
+    		StringWriter writer = new StringWriter();
+    		transformer.transform(new DOMSource(doc), new StreamResult(writer));
+    		return writer.getBuffer().toString();
+    	} catch (ParserConfigurationException pce) {
+    		pce.printStackTrace();
+    	} catch (TransformerException tfe) {
+    		tfe.printStackTrace();
+    	}
         return null;
-          // TODO: implement me
     }
 
     public void sendMessage(Socket sock) throws KVException {
           // TODO: implement me
+    	try {
+    		OutputStream os = sock.getOutputStream();
+    		PrintWriter out = new PrintWriter(os, true);
+    		out.println(this.toXML());
+    	} catch (IOException e) {
+    		e.printStackTrace();
+    	}
     }
 }
