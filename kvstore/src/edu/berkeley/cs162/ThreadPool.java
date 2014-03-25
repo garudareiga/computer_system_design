@@ -30,11 +30,17 @@
  */
 package edu.berkeley.cs162;
 
+import java.util.LinkedList;
+import java.util.concurrent.*;
+import java.util.concurrent.locks.ReentrantLock;
+
 public class ThreadPool {
     /**
      * Set of threads in the threadpool
      */
     protected Thread threads[] = null;
+    private LinkedList<Runnable> jobQueue;
+    private ReentrantLock jobQueueLock = new ReentrantLock();
 
     /**
      * Initialize the number of threads required in the threadpool.
@@ -44,6 +50,15 @@ public class ThreadPool {
     public ThreadPool(int size)
     {
         // TODO: implement me
+        jobQueue = new LinkedList<Runnable>();
+        
+        threads = new Thread[size];
+        for (int i = 0; i < size; i++) {
+            threads[i] = new WorkerThread(String.format("WorkThread-%d", i), this);
+        }
+        for (Thread t : threads) {
+            t.start();
+        }
     }
 
     /**
@@ -55,6 +70,13 @@ public class ThreadPool {
     public void addToQueue(Runnable r) throws InterruptedException
     {
         // TODO: implement me
+        try {
+            jobQueueLock.lock();
+            jobQueue.addLast(r);
+        } finally {
+            jobQueueLock.unlock();
+        }
+        notify();
     }
     
     /**
@@ -64,7 +86,13 @@ public class ThreadPool {
      */
     public synchronized Runnable getJob() throws InterruptedException {
         // TODO: implement me
-        return null;
+//        return null;
+        Runnable r = null;
+        if (!jobList.isEmpty()) { 
+            r = jobList.getFirst();
+            jobList.removeFirst();
+        }
+        return r;
     }
 }
 
@@ -72,14 +100,20 @@ public class ThreadPool {
  * The worker threads that make up the thread pool.
  */
 class WorkerThread extends Thread {
+    private ThreadPool threadPool;
+    private boolean finish;
+    
     /**
      * The constructor.
      *
      * @param o the thread pool
      */
-    WorkerThread(ThreadPool o)
+    WorkerThread(String name, ThreadPool o)
     {
         // TODO: implement me
+        super(name);
+        this.threadPool = o;
+        this.finish = false;
     }
 
     /**
@@ -88,5 +122,21 @@ class WorkerThread extends Thread {
     public void run()
     {
         // TODO: implement me
+        try {
+            while (!finish) {
+                Runnable r = this.threadPool.getJob();
+                if (r == null) {
+                    System.out.println("Go to sleep");
+                    wait();
+                    //Thread.sleep(1*1000);
+                } else {
+                    r.run();
+                }
+            }
+        } catch (InterruptedException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } 
+        
     }
 }

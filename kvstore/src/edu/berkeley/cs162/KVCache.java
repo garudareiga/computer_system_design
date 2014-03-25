@@ -30,7 +30,9 @@
  */
 package edu.berkeley.cs162;
 
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
+import java.util.LinkedList;;
 
 
 /**
@@ -42,14 +44,49 @@ public class KVCache implements KeyValueInterface {
     private int numSets = 100;
     private int maxElemsPerSet = 10;
 
+    private KVCacheSet[] kvCacheSet;
+    
+    private class KVCacheEntry {
+    	private String key;
+    	private String value;
+    	private boolean isReferenced;
+    	
+    	KVCacheEntry(String key, String value) {
+    		this.key = key;
+    		this.value = value;
+    		this.isReferenced = false;
+    	}
+    }
+    
+    private class KVCacheSet {
+    	private int maxElems = 10;
+    	private LinkedList<KVCacheEntry> entries = new LinkedList<KVCacheEntry>();
+    	private final ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+    	private final WriteLock writeLock = readWriteLock.writeLock();
+    	
+    	KVCacheSet(int maxElems) {
+    		this.maxElems = maxElems;
+    	}
+    	
+    	boolean isFull() {
+    		return (maxElems == entries.size());
+    	}
+    }
+    
     /**
      * Creates a new LRU cache.
+     * Add by Ray 03/24/2014
+     * Creates a new set-associate Cache (http://en.wikipedia.org/wiki/CPU_cache#Two-way_set_associative_cache)
      * @param cacheSize    the maximum number of entries that will be kept in this cache.
      */
     public KVCache(int numSets, int maxElemsPerSet) {
         this.numSets = numSets;
         this.maxElemsPerSet = maxElemsPerSet;
         // TODO: Implement Me!
+        this.kvCacheSet = new KVCacheSet[this.numSets];
+        for (int i = 0; i < this.kvCacheSet.length; i++) {
+        	this.kvCacheSet[i] = new KVCacheSet(maxElemsPerSet);
+        }
     }
 
     /**
@@ -64,6 +101,17 @@ public class KVCache implements KeyValueInterface {
         AutoGrader.agCacheGetDelay();
 
         // TODO: Implement Me!
+        if (key == null) {
+        	throw new NullPointerException("key == null");
+        }
+        
+        KVCacheSet kvCacheSet = this.kvCacheSet[getSetId(key)];
+		for (KVCacheEntry entry : kvCacheSet.entries) {
+			if (key.equals(entry.key)) {
+				entry.isReferenced = true;
+				return entry.value;
+			}
+		}
 
         // Must be called before returning
         AutoGrader.agCacheGetFinished(key);
@@ -85,7 +133,37 @@ public class KVCache implements KeyValueInterface {
         AutoGrader.agCachePutDelay();
 
         // TODO: Implement Me!
-
+        // Second-Eviction Policy: 
+        // http://goanna.cs.rmit.edu.au/~ronvs/WSWT/Online-Folder/chapter5/cs843_6.1.2.1.html
+        if (key == null) {
+        	throw new NullPointerException("key == null");
+        }
+        if (value == null) {
+        	throw new NullPointerException("value == null");
+        }
+        
+        KVCacheSet kvCacheSet = this.kvCacheSet[getSetId(key)];
+        for (KVCacheEntry entry : kvCacheSet.entries) {
+        	if (key.equals(entry.key)) {
+        		entry.value = value;
+        		return;
+        	}
+        }
+        if (kvCacheSet.isFull()) {
+        	for (KVCacheEntry entry : kvCacheSet.entries) {
+        		if (entry.isReferenced == true) {
+        			entry.isReferenced = false;
+        			continue;
+        		} else {
+        			entry.key = key;
+        			entry.value = value;
+        		}
+        	}
+        } else {
+        	KVCacheEntry newEntry = new KVCacheEntry(key, value);
+        	kvCacheSet.entries.addLast(newEntry);
+        }
+        
         // Must be called before returning
         AutoGrader.agCachePutFinished(key, value);
     }
@@ -101,6 +179,13 @@ public class KVCache implements KeyValueInterface {
         AutoGrader.agCacheDelDelay();
 
         // TODO: Implement Me!
+        KVCacheSet kvCacheSet = this.kvCacheSet[getSetId(key)];
+        for (KVCacheEntry entry : kvCacheSet.entries) {
+        	if (key.equals(entry.key)) {
+        		kvCacheSet.entries.remove(entry);
+        		return;
+        	}
+        }
 
         // Must be called before returning
         AutoGrader.agCacheDelFinished(key);
@@ -112,7 +197,8 @@ public class KVCache implements KeyValueInterface {
      */
     public WriteLock getWriteLock(String key) {
         // TODO: Implement Me!
-        return null;
+        //return null;
+    	return kvCacheSet[getSetId(key)].writeLock;
     }
 
     /**

@@ -31,6 +31,7 @@
  */
 package edu.berkeley.cs162;
 
+import java.io.IOException;
 import java.net.Socket;
 
 
@@ -57,23 +58,56 @@ public class KVClient implements KeyValueInterface {
 
     private Socket connectHost() throws KVException {
         // TODO: Implement Me!
-        return null;
+        //return null;
+    	Socket sock = null;
+    	try {
+    		sock = new Socket(server, port);
+    	} catch (IOException e) {
+    		e.printStackTrace();
+    	}
+    	return sock;
     }
 
     private void closeHost(Socket sock) throws KVException {
         // TODO: Implement Me!
+    	try {
+    		sock.close();
+    	} catch (IOException e) {
+    		e.printStackTrace();
+    	}
     }
 
     public void put(String key, String value) throws KVException {
         // TODO: Implement Me!
+    	Socket sock = connectHost();
+    	KVMessage kvmsg = new KVMessage("putreq");
+    	kvmsg.setKey(key);
+    	kvmsg.setValue(value);
+    	kvmsg.sendMessage(sock);
+    	closeHost(sock);
     }
 
     public String get(String key) throws KVException {
         // TODO: Implement Me!
-        return null;
+        //return null;
+    	Socket sock = connectHost();
+    	// Send request
+    	KVMessage msgReq = new KVMessage("getreq");
+    	msgReq.setKey(key);
+    	msgReq.sendMessage(sock);
+    	// Receive response
+    	KVMessage msgRep = new KVMessage(sock);
+    	String msgStr = msgRep.toXML();
+    	closeHost(sock);
+    	return msgStr;
     }
 
     public void del(String key) throws KVException {
         // TODO: Implement Me!
+    	Socket sock = connectHost();
+    	KVMessage kvmsg = new KVMessage("getreq");
+    	kvmsg.setKey(key);
+    	kvmsg.sendMessage(sock);
+    	closeHost(sock);
     }
 }

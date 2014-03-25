@@ -30,9 +30,23 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 package edu.berkeley.cs162;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.io.BufferedWriter;
 import java.util.HashMap;
 import java.util.Map;
 
+//Add by Ray
+import javax.xml.parsers.*;
+import javax.xml.transform.*;
+import javax.xml.transform.dom.*;
+import javax.xml.transform.stream.StreamResult;
+
+import org.w3c.dom.*;
 
 /**
  * This is a dummy KeyValue Store. Ideally this would go to disk,
@@ -106,11 +120,64 @@ public class KVStore implements KeyValueInterface {
 
     public String toXML() {
         // TODO: implement me
+        //return null;
+        try {
+            DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
+            Document doc = docBuilder.newDocument();
+            
+            // KVStore
+            Element kvstore = doc.createElement("KVStore");
+            doc.appendChild(kvstore);
+            // KVPair
+            for (Map.Entry<String, String> entry : store.entrySet()) {
+                Element kvpElement = doc.createElement("KVPair");
+                kvstore.appendChild(kvpElement);
+                
+                Element keyElement = doc.createElement("Key");
+                keyElement.appendChild(doc.createTextNode(entry.getKey()));
+                
+                Element valueElement = doc.createElement("Value");
+                valueElement.appendChild(doc.createTextNode(entry.getValue()));
+                
+                kvpElement.appendChild(keyElement);
+                kvpElement.appendChild(valueElement);
+            }
+            
+            TransformerFactory transformerFactory = TransformerFactory.newInstance();
+            // Prettify the XML output
+            transformerFactory.setAttribute("indent-number", 2);
+            Transformer transformer = transformerFactory.newTransformer();
+            // Prettify the XML output
+            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+            
+            StringWriter writer = new StringWriter();
+            transformer.transform(new DOMSource(doc), new StreamResult(writer));
+            
+            return writer.getBuffer().toString();
+        } catch (ParserConfigurationException pce) {
+            pce.printStackTrace();
+        } catch (TransformerException tfe) {
+            tfe.printStackTrace();
+        }
         return null;
     }
 
     public void dumpToFile(String fileName) {
         // TODO: implement me
+        try {
+            File file = new File(fileName);
+            if (!file.exists()) {
+                file.createNewFile();
+            }
+            
+            FileWriter fw = new FileWriter(file.getAbsoluteFile());
+            BufferedWriter bw = new BufferedWriter(fw);
+            bw.write(this.toXML());
+            bw.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -118,7 +185,32 @@ public class KVStore implements KeyValueInterface {
      * written by dumpToFile; the previous contents of the store are lost.
      * @param fileName the file to be read.
      */
-    public void restoreFromFile(String fileName) {
+    public void restoreFromFile(String fileName) throws FileNotFoundException {
         // TODO: implement me
+        File file = new File(fileName);
+        if (!file.exists()) {
+            throw new FileNotFoundException(fileName);
+        }
+        
+        try {
+            DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
+            Document doc = docBuilder.parse(file);
+            
+            doc.getDocumentElement().normalize();
+            
+            NodeList nodeList = doc.getElementsByTagName("KVPair");
+            for (int i = 0; i < nodeList.getLength(); i++) {
+                Node node = nodeList.item(i);
+                if (node.getNodeType() == Node.ELEMENT_NODE) {
+                    Element elem = (Element) node;
+                    String key = elem.getElementsByTagName("Key").item(0).getTextContent();
+                    String value = elem.getElementsByTagName("Value").item(0).getTextContent();
+                    this.store.put(key, value);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
