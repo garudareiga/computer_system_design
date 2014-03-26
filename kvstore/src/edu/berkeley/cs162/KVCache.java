@@ -56,6 +56,10 @@ public class KVCache implements KeyValueInterface {
     		this.value = value;
     		this.isReferenced = false;
     	}
+    	
+    	public boolean isReferenced() {
+    	    return isReferenced;
+    	}
     }
     
     private class KVCacheSet {

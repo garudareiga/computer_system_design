@@ -128,46 +128,8 @@ public class KVMessage {
          // TODO: implement me
     	try {
     		NoCloseInputStream is = new NoCloseInputStream(sock.getInputStream());
-    		DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
-    		DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
-    		Document doc = docBuilder.parse(is);
-    		
-    		// optinal normalize:
-    		// http://stackoverflow.com/questions/13786607/normalization-in-dom-parsing-with-java-how-does-it-work
-    		doc.getDocumentElement().normalize();
-    		
-    		// KVMessage
-    		NodeList kvmsgNodeList = doc.getElementsByTagName("KVMessage");
-    		if (kvmsgNodeList.getLength() > 0) {
-	    		Node kvmsgNode = kvmsgNodeList.item(0);
-	    		if (kvmsgNode.getNodeType() == Node.ELEMENT_NODE) {
-	    			Element kvmsgElement = (Element) kvmsgNode;
-	    			String msgType = kvmsgElement.getAttribute("type");
-	    			if (msgType == null)
-	    				throw new KVException(new KVMessage("resp", "Message format incorrect"));
-	    			
-	        		// Key
-	        		NodeList keyNodeList = kvmsgElement.getElementsByTagName("Key");
-	        		if (keyNodeList.getLength() > 0) {
-	        			this.key = keyNodeList.item(0).getTextContent();
-	        		}
-	        		// Value
-	        		NodeList valueNodeList = kvmsgElement.getElementsByTagName("Value");
-	        		if (valueNodeList.getLength() > 0) {
-	        			this.value = valueNodeList.item(0).getTextContent();
-	        		}
-	        		// Message
-	        		NodeList msgNodeList = kvmsgElement.getElementsByTagName("Message");
-	        		if (msgNodeList.getLength() > 0) {
-	        			this.message = valueNodeList.item(0).getTextContent();
-	        		}
-	    		}
-    		} else {
-    			throw new KVException(new KVMessage("resp", "Message format incorrect"));
-    		}
     	} catch (IOException e) {
-    		throw new KVException(new KVMessage("resp", "Network Error: Could not receive data"));
-    		//e.printStackTrace();
+    		e.printStackTrace();
     	} catch (Exception e) {
     		throw new KVException(new KVMessage("resp", "XML Error: Received unparseable message"));
     	}
@@ -185,7 +147,7 @@ public class KVMessage {
     		DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
     		
     		Document doc = docBuilder.newDocument();
-    		// root: KVMessage
+    		// root
     		Element kvmsg = doc.createElement("KVMessage");
     		kvmsg.setAttribute("type", this.msgType);
     		doc.appendChild(kvmsg);
@@ -213,6 +175,9 @@ public class KVMessage {
     		StringWriter writer = new StringWriter();
     		transformer.transform(new DOMSource(doc), new StreamResult(writer));
     		return writer.getBuffer().toString();
+    		//String result = new String();
+    		//transformer.transform(new DOMSource(doc), new StreamResult(result));
+    		//return result;
     	} catch (ParserConfigurationException pce) {
     		pce.printStackTrace();
     	} catch (TransformerException tfe) {
@@ -222,13 +187,13 @@ public class KVMessage {
     }
 
     public void sendMessage(Socket sock) throws KVException {
-          // TODO: implement me
-    	try {
-    		OutputStream os = sock.getOutputStream();
-    		PrintWriter out = new PrintWriter(os, true);
-    		out.println(this.toXML());
-    	} catch (IOException e) {
-    		e.printStackTrace();
-    	}
+        // TODO: implement me
+        try {
+            OutputStream os = sock.getOutputStream();
+            PrintWriter out = new PrintWriter(os, true);
+            out.println(this.toXML());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }

@@ -63,7 +63,7 @@ public class KVClient implements KeyValueInterface {
     	try {
     		sock = new Socket(server, port);
     	} catch (IOException e) {
-    		e.printStackTrace();
+    		throw new KVException(new KVMessage("resp", "Network Error: Could not create socket"));
     	}
     	return sock;
     }
@@ -73,7 +73,7 @@ public class KVClient implements KeyValueInterface {
     	try {
     		sock.close();
     	} catch (IOException e) {
-    		e.printStackTrace();
+    	    throw new KVException(new KVMessage("resp", "Network Error: Could not close socket"));
     	}
     }
 

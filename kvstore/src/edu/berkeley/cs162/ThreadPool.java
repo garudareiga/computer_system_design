@@ -32,15 +32,18 @@ package edu.berkeley.cs162;
 
 import java.util.LinkedList;
 import java.util.concurrent.*;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.*;
+
+import javax.management.Query;
 
 public class ThreadPool {
     /**
      * Set of threads in the threadpool
      */
     protected Thread threads[] = null;
-    private LinkedList<Runnable> jobQueue;
-    private ReentrantLock jobQueueLock = new ReentrantLock();
+    protected LinkedList<Runnable> jobQueue;
+    protected ReentrantLock jobQueueLock = new ReentrantLock();
+    protected Condition queueNotEmpty = jobQueueLock.newCondition();
 
     /**
      * Initialize the number of threads required in the threadpool.
@@ -73,10 +76,10 @@ public class ThreadPool {
         try {
             jobQueueLock.lock();
             jobQueue.addLast(r);
+            queueNotEmpty.signal();
         } finally {
             jobQueueLock.unlock();
         }
-        notify();
     }
     
     /**
@@ -88,9 +91,9 @@ public class ThreadPool {
         // TODO: implement me
 //        return null;
         Runnable r = null;
-        if (!jobList.isEmpty()) { 
-            r = jobList.getFirst();
-            jobList.removeFirst();
+        if (!jobQueue.isEmpty()) { 
+            r = jobQueue.getFirst();
+            jobQueue.removeFirst();
         }
         return r;
     }
@@ -122,21 +125,22 @@ class WorkerThread extends Thread {
     public void run()
     {
         // TODO: implement me
-        try {
-            while (!finish) {
-                Runnable r = this.threadPool.getJob();
-                if (r == null) {
+        while (!finish) {
+            Runnable r = null;
+            try {
+                threadPool.jobQueueLock.lock();
+                while (r == null) {
+                    r = this.threadPool.getJob();
                     System.out.println("Go to sleep");
-                    wait();
-                    //Thread.sleep(1*1000);
-                } else {
-                    r.run();
+                    threadPool.queueNotEmpty.await();    
                 }
+            } catch (InterruptedException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            } finally {
+                threadPool.jobQueueLock.unlock();
             }
-        } catch (InterruptedException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } 
-        
+            r.run();
+        }
     }
 }

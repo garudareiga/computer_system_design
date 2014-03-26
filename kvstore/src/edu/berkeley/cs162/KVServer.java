@@ -45,6 +45,18 @@ public class KVServer implements KeyValueInterface {
     private static final int MAX_KEY_SIZE = 256;
     private static final int MAX_VAL_SIZE = 256 * 1024;
 
+    private void checkKeySize(String key) throws KVException {
+        if (key.length() > MAX_KEY_SIZE) {
+            throw new KVException(new KVMessage("resp", "Oversized key"));
+        }
+    }
+
+    private void checkValueSize(String value) throws KVException {
+        if (value.length() > MAX_VAL_SIZE) {
+            throw new KVException(new KVMessage("resp", "Oversized value"));
+        }
+    }
+    
     /**
      * @param numSets number of sets in the data Cache.
      */
@@ -60,7 +72,11 @@ public class KVServer implements KeyValueInterface {
         AutoGrader.agKVServerPutStarted(key, value);
 
         // TODO: implement me
-
+        checkKeySize(key);
+        checkValueSize(value);
+        dataCache.put(key, value);
+        dataStore.put(key, value);
+        
         // Must be called before return or abnormal exit
         AutoGrader.agKVServerPutFinished(key, value);
     }
@@ -70,6 +86,17 @@ public class KVServer implements KeyValueInterface {
         AutoGrader.agKVServerGetStarted(key);
 
         // TODO: implement me
+        checkKeySize(key);
+        String cacheValue = dataCache.get(key);
+        if (cacheValue != null) {
+            return cacheValue;
+        }
+        
+        String storeValue = dataStore.get(key);
+        if (storeValue != null) {
+            dataCache.put(key, storeValue);
+            return storeValue;
+        }
 
         // Must be called before return or abnormal exit
         AutoGrader.agKVServerGetFinished(key);
@@ -81,6 +108,9 @@ public class KVServer implements KeyValueInterface {
         AutoGrader.agKVServerDelStarted(key);
 
         // TODO: implement me
+        checkKeySize(key);
+        this.dataCache.del(key);
+        this.dataStore.del(key);
 
         // Must be called before return or abnormal exit
         AutoGrader.agKVServerDelFinished(key);
