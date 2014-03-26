@@ -30,9 +30,18 @@
  */
 package edu.berkeley.cs162;
 
+import java.io.*;
+import java.util.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
-import java.util.LinkedList;;
+
+import javax.xml.parsers.*;
+import javax.xml.transform.*;
+import javax.xml.transform.dom.*;
+import javax.xml.transform.stream.StreamResult;
+
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 
 
 /**
@@ -89,7 +98,7 @@ public class KVCache implements KeyValueInterface {
         // TODO: Implement Me!
         this.kvCacheSet = new KVCacheSet[this.numSets];
         for (int i = 0; i < this.kvCacheSet.length; i++) {
-        	this.kvCacheSet[i] = new KVCacheSet(maxElemsPerSet);
+        	this.kvCacheSet[i] = new KVCacheSet(this.maxElemsPerSet);
         }
     }
 
@@ -154,17 +163,32 @@ public class KVCache implements KeyValueInterface {
         	}
         }
         if (kvCacheSet.isFull()) {
-        	for (KVCacheEntry entry : kvCacheSet.entries) {
-        		if (entry.isReferenced == true) {
-        			entry.isReferenced = false;
-        			continue;
-        		} else {
-        			entry.key = key;
-        			entry.value = value;
+            int entryIndex = 0;
+            KVCacheEntry entry = null;
+            for (; entryIndex < kvCacheSet.entries.size(); entryIndex++) {
+                entry = kvCacheSet.entries.get(entryIndex);
+                if (entry.isReferenced() == false) {
+                    break;
+                }
+            }
+            
+        	for (KVCacheEntry tmpEntry : kvCacheSet.entries) {
+        		if (tmpEntry.isReferenced == true) {
+        			tmpEntry.isReferenced = false;
         		}
         	}
+        	
+        	if (entryIndex == kvCacheSet.entries.size()) {
+        	    entry = kvCacheSet.entries.getFirst();
+        	} else {
+        	    entry = kvCacheSet.entries.get(entryIndex);
+        	}
+        	entry.key = key;
+        	entry.value = value;
+        	entry.isReferenced = true;
         } else {
         	KVCacheEntry newEntry = new KVCacheEntry(key, value);
+        	newEntry.isReferenced = true;
         	kvCacheSet.entries.addLast(newEntry);
         }
         
@@ -216,6 +240,60 @@ public class KVCache implements KeyValueInterface {
 
     public String toXML() {
         // TODO: Implement Me!
+        //return null;
+        try {
+            DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
+            Document doc = docBuilder.newDocument();
+            
+            // KVCache
+            Element kvcache = doc.createElement("KVCache");
+            doc.appendChild(kvcache);
+            // KVPair
+            for (int setId = 0; setId < kvCacheSet.length; setId++) {
+                KVCacheSet cacheSet = kvCacheSet[setId];
+                
+                Element setElement = doc.createElement("Set");
+                setElement.setAttribute("Id", Integer.toString(setId));
+                kvcache.appendChild(setElement);
+                
+                for (KVCacheEntry entry : cacheSet.entries) {
+                    Element entryElement = doc.createElement("CacheEntry");
+                    if (entry.isReferenced()) {
+                        entryElement.setAttribute("isReferenced", "true");
+                    } else {
+                        entryElement.setAttribute("isReferenced", "false");
+                    }
+                    entryElement.setAttribute("isValid", "true");
+                    setElement.appendChild(entryElement);
+                
+                    Element keyElement = doc.createElement("Key");
+                    keyElement.appendChild(doc.createTextNode(entry.key));
+                    
+                    Element valueElement = doc.createElement("Value");
+                    valueElement.appendChild(doc.createTextNode(entry.value));
+                    
+                    entryElement.appendChild(keyElement);
+                    entryElement.appendChild(valueElement);
+                }
+            }
+            
+            TransformerFactory transformerFactory = TransformerFactory.newInstance();
+            // Prettify the XML output
+            transformerFactory.setAttribute("indent-number", 2);
+            Transformer transformer = transformerFactory.newTransformer();
+            // Prettify the XML output
+            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+            
+            StringWriter writer = new StringWriter();
+            transformer.transform(new DOMSource(doc), new StreamResult(writer));
+            
+            return writer.getBuffer().toString();
+        } catch (ParserConfigurationException pce) {
+            pce.printStackTrace();
+        } catch (TransformerException tfe) {
+            tfe.printStackTrace();
+        }
         return null;
     }
 }

@@ -55,14 +55,40 @@ public class KVClientHandler implements NetworkHandler {
         threadpool = new ThreadPool(connections);
     }
 
-
     private class ClientHandler implements Runnable {
         private KVServer kvServer = null;
         private Socket client = null;
 
         @Override
         public void run() {
-             // TODO: Implement Me!
+            // TODO: Implement Me!
+            try {
+                KVMessage msg;
+                msg = new KVMessage(client);
+                String msgType = msg.getMsgType();
+                if (msgType.equals("getreq")) {
+                    String storeValue = kvServer.get(msg.getKey());
+                    if (storeValue == null) {
+                        msg.setMessage("Error Message");
+                    } else {
+                        msg.setMessage("Success");
+                    }
+                } else if (msgType.equals("putreq")) {
+                    kvServer.put(msg.getKey(), msg.getValue());
+                } else if (msgType.equals("delreq")) {
+                    kvServer.del(msg.getKey());
+                } else {
+                }
+            } catch (KVException e) {
+                // TODO Auto-generated catch block
+                try {
+                    KVMessage repMsg = new KVMessage("resp", "Error Message");
+                    repMsg.sendMessage(this.client);
+                } catch (KVException e1) {
+                    // TODO Auto-generated catch block
+                    e1.printStackTrace();
+                }
+            }
         }
 
         public ClientHandler(KVServer kvServer, Socket client) {
@@ -85,3 +111,5 @@ public class KVClientHandler implements NetworkHandler {
         }
     }
 }
+
+
