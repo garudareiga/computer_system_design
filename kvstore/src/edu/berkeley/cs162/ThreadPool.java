@@ -31,10 +31,7 @@
 package edu.berkeley.cs162;
 
 import java.util.LinkedList;
-import java.util.concurrent.*;
 import java.util.concurrent.locks.*;
-
-import javax.management.Query;
 
 public class ThreadPool {
     /**

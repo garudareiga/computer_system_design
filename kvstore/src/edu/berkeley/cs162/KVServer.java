@@ -68,51 +68,59 @@ public class KVServer implements KeyValueInterface {
     }
 
     public void put(String key, String value) throws KVException {
-        // Must be called before anything else
-        AutoGrader.agKVServerPutStarted(key, value);
-
         // TODO: implement me
-        checkKeySize(key);
-        checkValueSize(value);
-        dataCache.put(key, value);
-        dataStore.put(key, value);
-        
-        // Must be called before return or abnormal exit
-        AutoGrader.agKVServerPutFinished(key, value);
+        try {
+            // Must be called before anything else
+            AutoGrader.agKVServerPutStarted(key, value);
+            
+            checkKeySize(key);
+            checkValueSize(value);
+            dataCache.put(key, value);
+            dataStore.put(key, value);
+        } finally {
+            // Must be called before return or abnormal exit
+            AutoGrader.agKVServerPutFinished(key, value);
+        }
     }
 
     public String get (String key) throws KVException {
-        // Must be called before anything else
-        AutoGrader.agKVServerGetStarted(key);
-
-        // TODO: implement me
-        checkKeySize(key);
-        String cacheValue = dataCache.get(key);
-        if (cacheValue != null) {
-            return cacheValue;
+        String value = null;
+        try {
+            // Must be called before anything else
+            AutoGrader.agKVServerGetStarted(key);
+            
+            // TODO: implement me
+            checkKeySize(key);
+            String cacheValue = dataCache.get(key);
+            if (cacheValue != null) {
+                value = cacheValue;
+            } else {
+                String storeValue = dataStore.get(key);
+                if (storeValue != null) {
+                    dataCache.put(key, storeValue);
+                    value = storeValue;
+                }
+            }
+        } finally {
+            // Must be called before return or abnormal exit
+            AutoGrader.agKVServerGetFinished(key);
         }
-        
-        String storeValue = dataStore.get(key);
-        if (storeValue != null) {
-            dataCache.put(key, storeValue);
-            return storeValue;
-        }
-
-        // Must be called before return or abnormal exit
-        AutoGrader.agKVServerGetFinished(key);
-        return null;
+        return value;
+        //return null;
     }
 
     public void del (String key) throws KVException {
-        // Must be called before anything else
-        AutoGrader.agKVServerDelStarted(key);
-
-        // TODO: implement me
-        checkKeySize(key);
-        this.dataCache.del(key);
-        this.dataStore.del(key);
-
-        // Must be called before return or abnormal exit
-        AutoGrader.agKVServerDelFinished(key);
+        try {
+            // Must be called before anything else
+            AutoGrader.agKVServerDelStarted(key);
+    
+            // TODO: implement me
+            checkKeySize(key);
+            this.dataCache.del(key);
+            this.dataStore.del(key);
+        } finally {
+            // Must be called before return or abnormal exit
+            AutoGrader.agKVServerDelFinished(key);
+        }
     }
 }

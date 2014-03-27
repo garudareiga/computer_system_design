@@ -31,12 +31,7 @@
  */
 package edu.berkeley.cs162;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.StringWriter;
-import java.io.BufferedWriter;
+import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -57,7 +52,7 @@ import org.w3c.dom.*;
  *
  */
 public class KVStore implements KeyValueInterface {
-    private Map<String, String> store     = null;
+    private Map<String, String> store = null;
 
     public KVStore() {
         resetStore();

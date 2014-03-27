@@ -65,11 +65,10 @@ public class SocketServer {
      */
     public void run() throws IOException {
         // TODO: implement me
-        Socket sock;
-        while (true) {    
-            sock = server.accept();
-            System.out.println("Accepted from " + sock.getInetAddress().getHostName());
-            this.handler.handle(sock);
+        Socket clientSock;
+        while ((clientSock = server.accept()) != null) {    
+            System.out.println("Accepted from " + clientSock.getInetAddress().getHostName());
+            this.handler.handle(clientSock);
         }
     }
 
@@ -90,7 +89,6 @@ public class SocketServer {
         try {
             server.close();
         } catch (IOException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         }
     }
@@ -101,6 +99,7 @@ public class SocketServer {
      */
     public void stop() {
         // TODO: implement me
+        
     }
 
     protected void finalize(){

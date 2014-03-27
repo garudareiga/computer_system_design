@@ -69,7 +69,7 @@ public class KVClientHandler implements NetworkHandler {
                 if (msgType.equals("getreq")) {
                     String storeValue = kvServer.get(msg.getKey());
                     if (storeValue == null) {
-                        msg.setMessage("Error Message");
+                        msg.setMessage("Does not exist");
                     } else {
                         msg.setMessage("Success");
                     }

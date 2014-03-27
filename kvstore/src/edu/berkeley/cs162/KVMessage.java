@@ -95,9 +95,10 @@ public class KVMessage {
      */
     public KVMessage(String msgType) throws KVException {
         // TODO: implement me
-    	if (!(msgType.equals("getreq") ||
-    		msgType.equals("putreq") ||
-    		msgType.equals("delreq") ||
+    	if (msgType == null            ||
+    	    !(msgType.equals("getreq") ||
+    		msgType.equals("putreq")   ||
+    		msgType.equals("delreq")   ||
     		msgType.equals("resp")))
     		throw new KVException(new KVMessage("resp", "Message format incorrect"));
     	
@@ -106,9 +107,11 @@ public class KVMessage {
 
     public KVMessage(String msgType, String message) throws KVException {
         // TODO: implement me
-    	if (!(msgType.equals("getreq") ||
-        	msgType.equals("putreq") ||
-        	msgType.equals("delreq") ||
+    	if (msgType == null            ||
+    	    message == null            ||
+    	    !(msgType.equals("getreq") ||
+        	msgType.equals("putreq")   ||
+        	msgType.equals("delreq")   ||
         	msgType.equals("resp")))
         	throw new KVException(new KVMessage("resp", "Message format incorrect"));
     	
@@ -125,14 +128,53 @@ public class KVMessage {
      * c. "Message format incorrect" - if there message does not conform to the required specifications. Examples include incorrect message type.
      */
     public KVMessage(Socket sock) throws KVException {
-         // TODO: implement me
-    	try {
-    		NoCloseInputStream is = new NoCloseInputStream(sock.getInputStream());
-    	} catch (IOException e) {
-    		e.printStackTrace();
-    	} catch (Exception e) {
-    		throw new KVException(new KVMessage("resp", "XML Error: Received unparseable message"));
-    	}
+        // TODO: implement me
+        try {
+            NoCloseInputStream is = new NoCloseInputStream(sock.getInputStream());
+            DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
+            Document doc = docBuilder.parse(is);
+          
+            // optinal normalize:
+            // http://stackoverflow.com/questions/13786607/normalization-in-dom-parsing-with-java-how-does-it-work
+            doc.getDocumentElement().normalize();
+          
+            // KVMessage
+            NodeList kvmsgNodeList = doc.getElementsByTagName("KVMessage");
+            if (kvmsgNodeList.getLength() > 0) {
+                Node kvmsgNode = kvmsgNodeList.item(0);
+                if (kvmsgNode.getNodeType() == Node.ELEMENT_NODE) {
+                    Element kvmsgElement = (Element) kvmsgNode;
+                    String msgType = kvmsgElement.getAttribute("type");
+                    if (msgType == null)
+                        throw new KVException(new KVMessage("resp", "Message format incorrect"));
+                    this.msgType = msgType;
+                    
+                    // Key
+                    NodeList keyNodeList = kvmsgElement.getElementsByTagName("Key");
+                    if (keyNodeList.getLength() > 0) {
+                        this.key = keyNodeList.item(0).getTextContent();
+                    }
+                    // Value
+                    NodeList valueNodeList = kvmsgElement.getElementsByTagName("Value");
+                    if (valueNodeList.getLength() > 0) {
+                        this.value = valueNodeList.item(0).getTextContent();
+                    }
+                    // Message
+                    NodeList msgNodeList = kvmsgElement.getElementsByTagName("Message");
+                    if (msgNodeList.getLength() > 0) {
+                        this.message = valueNodeList.item(0).getTextContent();
+                    }
+                  }
+             } else {
+                 throw new KVException(new KVMessage("resp", "Message format incorrect"));
+             }
+      } catch (IOException e) {
+          throw new KVException(new KVMessage("resp", "Network Error: Could not receive data"));
+          //e.printStackTrace();
+      } catch (Exception e) {
+          throw new KVException(new KVMessage("resp", "XML Error: Received unparseable message"));
+      }
     }
 
     /**

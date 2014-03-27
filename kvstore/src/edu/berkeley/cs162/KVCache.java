@@ -63,7 +63,7 @@ public class KVCache implements KeyValueInterface {
     	KVCacheEntry(String key, String value) {
     		this.key = key;
     		this.value = value;
-    		this.isReferenced = false;
+    		this.isReferenced = true;
     	}
     	
     	public boolean isReferenced() {
@@ -114,21 +114,20 @@ public class KVCache implements KeyValueInterface {
         AutoGrader.agCacheGetDelay();
 
         // TODO: Implement Me!
-        if (key == null) {
-        	throw new NullPointerException("key == null");
-        }
-        
+        String value = null;
         KVCacheSet kvCacheSet = this.kvCacheSet[getSetId(key)];
 		for (KVCacheEntry entry : kvCacheSet.entries) {
 			if (key.equals(entry.key)) {
+				value = entry.value;
 				entry.isReferenced = true;
-				return entry.value;
+				break;
 			}
 		}
 
         // Must be called before returning
         AutoGrader.agCacheGetFinished(key);
-        return null;
+        return value;
+        //return null;
     }
 
     /**
@@ -147,50 +146,37 @@ public class KVCache implements KeyValueInterface {
 
         // TODO: Implement Me!
         // Second-Eviction Policy: 
-        // http://goanna.cs.rmit.edu.au/~ronvs/WSWT/Online-Folder/chapter5/cs843_6.1.2.1.html
-        if (key == null) {
-        	throw new NullPointerException("key == null");
-        }
-        if (value == null) {
-        	throw new NullPointerException("value == null");
-        }
-        
+        // http://goanna.cs.rmit.edu.au/~ronvs/WSWT/Online-Folder/chapter5/cs843_6.1.2.1.html        
         KVCacheSet kvCacheSet = this.kvCacheSet[getSetId(key)];
         for (KVCacheEntry entry : kvCacheSet.entries) {
         	if (key.equals(entry.key)) {
-        		entry.value = value;
-        		return;
+        		kvCacheSet.entries.remove(entry);
+        		break;
         	}
         }
+        
         if (kvCacheSet.isFull()) {
-            int entryIndex = 0;
-            KVCacheEntry entry = null;
-            for (; entryIndex < kvCacheSet.entries.size(); entryIndex++) {
-                entry = kvCacheSet.entries.get(entryIndex);
-                if (entry.isReferenced() == false) {
-                    break;
+            int entryIndex = -1;
+            for (int i = 0; i < kvCacheSet.entries.size(); i++) {
+                KVCacheEntry entry = kvCacheSet.entries.get(i);
+                if (entry.isReferenced() == false) {    // second chance
+                    if (entryIndex == -1) {
+                        entryIndex = i;
+                    }
+                } else {
+                    entry.isReferenced = false;
                 }
             }
-            
-        	for (KVCacheEntry tmpEntry : kvCacheSet.entries) {
-        		if (tmpEntry.isReferenced == true) {
-        			tmpEntry.isReferenced = false;
-        		}
-        	}
         	
-        	if (entryIndex == kvCacheSet.entries.size()) {
-        	    entry = kvCacheSet.entries.getFirst();
+        	if (entryIndex == -1) {
+        	    kvCacheSet.entries.removeFirst();
         	} else {
-        	    entry = kvCacheSet.entries.get(entryIndex);
+        	    kvCacheSet.entries.remove(entryIndex);
         	}
-        	entry.key = key;
-        	entry.value = value;
-        	entry.isReferenced = true;
-        } else {
-        	KVCacheEntry newEntry = new KVCacheEntry(key, value);
-        	newEntry.isReferenced = true;
-        	kvCacheSet.entries.addLast(newEntry);
         }
+        
+    	KVCacheEntry newEntry = new KVCacheEntry(key, value);
+    	kvCacheSet.entries.addLast(newEntry);
         
         // Must be called before returning
         AutoGrader.agCachePutFinished(key, value);
