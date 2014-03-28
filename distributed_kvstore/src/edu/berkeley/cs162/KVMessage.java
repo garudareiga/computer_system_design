@@ -31,9 +31,30 @@
 package edu.berkeley.cs162;
 
 import java.io.FilterInputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.io.Serializable;
+import java.io.StringWriter;
 import java.net.Socket;
+import java.net.SocketException;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+
+import sun.font.CreatedFontTracker;
 
 /**
  * This is the object that is used to generate messages the XML based messages
@@ -98,6 +119,7 @@ public class KVMessage implements Serializable {
      */
     public KVMessage(Socket sock) throws KVException {
         // TODO: implement me
+        createMessage(sock);
     }
 
     /**
@@ -109,8 +131,69 @@ public class KVMessage implements Serializable {
      */
     public KVMessage(Socket sock, int timeout) throws KVException {
         // TODO: implement me
+        try {
+            sock.setSoTimeout(timeout);
+            createMessage(sock);
+        } catch (SocketException e) {
+            // TODO Auto-generated catch block
+            throw new KVException(new KVMessage("resp", "Network Error: Could not receive data"));
+        }
     }
+    
+    protected void createMessage(Socket sock) throws KVException {
+        NoCloseInputStream is;
+        try {
+            is = new NoCloseInputStream(sock.getInputStream());
+            DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
+            Document doc = docBuilder.parse(is);    
 
+            // optinal normalize:
+            // http://stackoverflow.com/questions/13786607/normalization-in-dom-parsing-with-java-how-does-it-work
+            doc.getDocumentElement().normalize();
+          
+            // KVMessage
+            NodeList kvmsgNodeList = doc.getElementsByTagName("KVMessage");
+            if (kvmsgNodeList.getLength() > 0) {
+                Node kvmsgNode = kvmsgNodeList.item(0);
+                if (kvmsgNode.getNodeType() == Node.ELEMENT_NODE) {
+                    Element kvmsgElement = (Element) kvmsgNode;
+                    String msgType = kvmsgElement.getAttribute("type");
+                    if (msgType == null)
+                        throw new KVException(new KVMessage("resp", "Message format incorrect"));
+                    this.msgType = msgType;
+                    
+                    // Key
+                    NodeList keyNodeList = kvmsgElement.getElementsByTagName("Key");
+                    if (keyNodeList.getLength() > 0) {
+                        this.key = keyNodeList.item(0).getTextContent();
+                    }
+                    // Value
+                    NodeList valueNodeList = kvmsgElement.getElementsByTagName("Value");
+                    if (valueNodeList.getLength() > 0) {
+                        this.value = valueNodeList.item(0).getTextContent();
+                    }
+                    // TPCOpId
+                    NodeList tpcOpIdNodeList = kvmsgElement.getElementsByTagName("TPCOpId");
+                    if (tpcOpIdNodeList.getLength() > 0) {
+                        this.tpcOpId = tpcOpIdNodeList.item(0).getTextContent();
+                    }
+                    // Message
+                    NodeList msgNodeList = kvmsgElement.getElementsByTagName("Message");
+                    if (msgNodeList.getLength() > 0) {
+                        this.message = valueNodeList.item(0).getTextContent();
+                    }
+                  }
+             } else {
+                 throw new KVException(new KVMessage("resp", "Message format incorrect"));
+             }
+      } catch (IOException e) {
+          throw new KVException(new KVMessage("resp", "Network Error: Could not receive data"));
+          //e.printStackTrace();
+      } catch (Exception e) {
+          throw new KVException(new KVMessage("resp", "XML Error: Received unparseable message"));
+      }
+    }
 
     public final String getKey() {
         return key;
@@ -159,8 +242,53 @@ public class KVMessage implements Serializable {
      * @throws KVException
      */
     public String toXML() throws KVException {
-        return null;
         // TODO: implement me
+        String msgStr = null;
+        try {
+            DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
+            
+            Document doc = docBuilder.newDocument();
+            // root
+            Element kvmsg = doc.createElement("KVMessage");
+            kvmsg.setAttribute("type", this.msgType);
+            doc.appendChild(kvmsg);
+            // Key element
+            if (this.key != null) {
+                Element keyElement = doc.createElement("Key");
+                keyElement.appendChild(doc.createTextNode(this.key));
+                kvmsg.appendChild(keyElement);
+            }
+            // Value element
+            if (this.value != null) {
+                Element valueElement = doc.createElement("Value");
+                valueElement.appendChild(doc.createTextNode(this.value));
+                kvmsg.appendChild(valueElement);
+            }
+            // TPCOpId element
+            if (this.tpcOpId != null) {
+                Element tpcOpIdElement = doc.createElement("TPCOpId");
+                tpcOpIdElement.appendChild(doc.createTextNode(this.tpcOpId));
+                kvmsg.appendChild(tpcOpIdElement);
+            }           
+            // Message element
+            if (this.message != null) {
+                Element msgElement = doc.createElement("Message");
+                msgElement.appendChild(doc.createTextNode(this.message));
+                kvmsg.appendChild(msgElement);
+            }
+            
+            TransformerFactory transformerFactory = TransformerFactory.newInstance();
+            Transformer transformer = transformerFactory.newTransformer();
+            StringWriter writer = new StringWriter();
+            transformer.transform(new DOMSource(doc), new StreamResult(writer));
+            msgStr = writer.getBuffer().toString();
+        } catch (ParserConfigurationException pce) {
+            pce.printStackTrace();
+        } catch (TransformerException tfe) {
+            tfe.printStackTrace();
+        }
+        return msgStr;
     }
 
     /**
@@ -172,6 +300,15 @@ public class KVMessage implements Serializable {
      */
     public void sendMessage(Socket sock) throws KVException {
         // TODO: implement me from proj3
+        try {
+            OutputStream os = sock.getOutputStream();
+            PrintWriter out = new PrintWriter(os, true);
+            out.println(this.toXML());
+            out.flush();
+            sock.shutdownOutput();
+        } catch (IOException e) {
+            throw new KVException(new KVMessage("resp", "Network Error: Could not send data"));
+        }
     }
 
 }
