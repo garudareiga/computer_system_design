@@ -82,6 +82,8 @@ public class TPCLog {
      */
     public void appendAndFlush(KVMessage entry) {
         // implement me
+        entries.add(entry);
+        flushToDisk();
     }
 
     /**
@@ -144,6 +146,23 @@ public class TPCLog {
      */
     public void rebuildKeyServer() throws KVException {
         // implement me
+        for (KVMessage kvmsg : entries) {
+            String msgType = kvmsg.getMsgType();  
+            if (msgType.equals(KVMessage.PUT) || msgType.equals(KVMessage.DEL)) {
+               interruptedTpcOperation = kvmsg;
+            } else if (msgType.equals(KVMessage.COMMIT)) {
+                KVMessage logEntry = getInterruptedTpcOperation();
+                if (logEntry != null && logEntry.getTpcOpId() == kvmsg.getTpcOpId()) {
+                    if (logEntry.getMsgType().equals(KVMessage.PUT)) {
+                        kvServer.put(logEntry.getKey(), logEntry.getValue());
+                    } else {
+                        kvServer.del(logEntry.getKey());
+                    }
+                } else {
+                    throw new KVException(new KVMessage("Error: Wrong TPC Operation Id"));
+                }
+            }
+        }
     }
 
     /**

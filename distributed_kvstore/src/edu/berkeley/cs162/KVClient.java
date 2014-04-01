@@ -31,6 +31,8 @@
  */
 package edu.berkeley.cs162;
 
+import java.io.*;
+import java.util.*;
 import java.net.Socket;
 
 
@@ -49,35 +51,68 @@ public class KVClient implements KeyValueInterface {
      * @param port is the port on which the Key-Value server is listening
      */
     public KVClient(String server, int port) {
-        server = server;
-        port = port;
+        this.server = server;
+        this.port = port;
     }
 
     private Socket connectHost() throws KVException {
         // TODO: implement me from proj3
-        return null;
+        Socket sock = null;
+        try {
+            sock = new Socket(server, port);
+        } catch (IOException e) {
+            throw new KVException(new KVMessage("resp", "Network Error: Could not create socket"));
+        }
+        return sock;
     }
 
     private void closeHost(Socket sock) throws KVException {
         // TODO: implement me from proj3
+        try {
+            sock.close();
+        } catch (IOException e) {
+            throw new KVException(new KVMessage(KVMessage.RESP, "Network Error: Could not close socket"));
+        }    
     }
 
     public void put(String key, String value) throws KVException {
         // TODO: implement me from proj3
-        return;
+        Socket sock = connectHost();
+        KVMessage kvmsg = new KVMessage(KVMessage.PUT);
+        kvmsg.setKey(key);
+        kvmsg.setValue(value);
+        kvmsg.sendMessage(sock);
+        closeHost(sock);
     }
 
     public String get(String key) throws KVException {
         // TODO: implement me from proj3
-        return null;
+        Socket sock = connectHost();
+        // Send request
+        KVMessage msgReq = new KVMessage(KVMessage.GET);
+        msgReq.setKey(key);
+        msgReq.sendMessage(sock);
+        // Receive response
+        KVMessage msgRep = new KVMessage(sock);
+        String msgStr = msgRep.toXML();
+        closeHost(sock);
+        return msgStr;
     }
 
     public void del(String key) throws KVException {
         // TODO: implement me from proj3
-        return;
+        Socket sock = connectHost();
+        KVMessage kvmsg = new KVMessage(KVMessage.DEL);
+        kvmsg.setKey(key);
+        kvmsg.sendMessage(sock);
+        closeHost(sock);
     }
 
     public void ignoreNext() throws KVException {
         // TODO: implement me
+        Socket sock = connectHost();
+        KVMessage kvmsg = new KVMessage(KVMessage.IGNORENEXT);
+        kvmsg.sendMessage(sock);
+        closeHost(sock);
     }
 }

@@ -64,10 +64,18 @@ public class KVClientHandler implements NetworkHandler {
         @Override
         public void run() {
             // TODO: implement me
+            KVMessage msg = new KVMessage(client);
+            if (msg.getMsgType().equals(KVMessage.GET)) {
+                tpcMaster.handleGet(msg);
+            } else if (msg.getMsgType().equals(KVMessage.PUT)) {
+                tpcMaster.performTPCOperation(msg, true);
+            } else if (msg.getMsgType().equals(KVMessage.DEL)) {
+                tpcMaster.performTPCOperation(msg, false);
+            }
         }
 
         public ClientHandler(Socket client) {
-            client = client;
+            this.client = client;
         }
     }
 

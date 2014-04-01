@@ -46,6 +46,18 @@ public class KVServer implements KeyValueInterface {
     public static final int MAX_KEY_SIZE = 256;
     public static final int MAX_VAL_SIZE = 256 * 1024;
 
+    private void checkKeySize(String key) throws KVException {
+        if (key.length() > MAX_KEY_SIZE) {
+            throw new KVException(new KVMessage("resp", "Oversized key"));
+        }
+    }
+
+    private void checkValueSize(String value) throws KVException {
+        if (value.length() > MAX_VAL_SIZE) {
+            throw new KVException(new KVMessage("resp", "Oversized value"));
+        }
+    }   
+    
     /**
      * @param numSets number of sets in the data Cache.
      */
@@ -62,32 +74,57 @@ public class KVServer implements KeyValueInterface {
         AutoGrader.agKVServerPutStarted(key, value);
 
         // TODO: implement me from proj3
-
-        // Must be called before returning
-        AutoGrader.agKVServerPutFinished(key, value);
+        try {
+            checkKeySize(key);
+            checkValueSize(value);
+            dataCache.put(key, value);
+            dataStore.put(key, value);
+        } finally {
+            // Must be called before returning
+            AutoGrader.agKVServerPutFinished(key, value);
+        }
     }
 
     @Override
     public String get(String key) throws KVException {
         // Must be called before anything else
         AutoGrader.agKVServerGetStarted(key);
-
+        
         // TODO: implement me from proj3
-
-        // Must be called before returning
-        AutoGrader.agKVServerGetFinished(key);
-        return null;
+        String value = null;
+        try {
+            checkKeySize(key);
+            String cacheValue = dataCache.get(key);
+            if (cacheValue != null) {
+                value = cacheValue;
+            } else {
+                String storeValue = dataStore.get(key);
+                if (storeValue != null) {
+                    dataCache.put(key, storeValue);
+                    value = storeValue;
+                }
+            }
+        } finally {
+            // Must be called before return or abnormal exit
+            AutoGrader.agKVServerGetFinished(key);
+        }
+        return value;
     }
 
     @Override
     public void del(String key) throws KVException {
         // Must be called before anything else
         AutoGrader.agKVServerDelStarted(key);
-
-        // TODO: implement me from proj3
-
-        // Must be called before returning
-        AutoGrader.agKVServerDelFinished(key);
+        
+     // TODO: implement me from proj3
+        try {
+            checkKeySize(key);
+            dataCache.del(key);
+            dataStore.del(key);
+        } finally {
+            // Must be called before return or abnormal exit
+            AutoGrader.agKVServerDelFinished(key);
+        }
     }
 
     /**
@@ -100,7 +137,9 @@ public class KVServer implements KeyValueInterface {
      */
     public boolean hasKey(String key) throws KVException {
         // TODO: implement me
-
+        if (dataStore.get(key) != null) {
+            return true;
+        }
         return false;
     }
 }

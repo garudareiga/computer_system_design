@@ -138,6 +138,7 @@ public class TPCMasterHandler implements NetworkHandler {
             KVMessage msg = null;
 
             // Implement me
+            msg = new KVMessage(master);
 
             String key = msg.getKey();
             String msgType = msg.getMsgType();
@@ -173,6 +174,13 @@ public class TPCMasterHandler implements NetworkHandler {
             AutoGrader.agGetStarted(slaveID);
 
             // Implement me
+            String storeValue = kvServer.get(msg.getKey());
+            msg = new KVMessage("resp");
+            if (storeValue == null) {
+                msg.setMessage("Error Message");
+            } else {
+                msg.setMessage("Success");
+            }
 
             AutoGrader.agGetFinished(slaveID);
         }
@@ -185,6 +193,7 @@ public class TPCMasterHandler implements NetworkHandler {
             originalMessage = new KVMessage(msg);
 
             // Implement me
+            // kvServer.put();
 
             AutoGrader.agTPCPutFinished(slaveID, msg, key);
         }
