@@ -21,15 +21,10 @@ import java.util.*;
  */
 public class Path implements Iterable<String>, Serializable
 {
-    // Add by Ray 05-28-2014
-    private static final long serialVersionUID = 1L;
-    LinkedList<String> pathComponents;
-    
     /** Creates a new path which represents the root directory. */
     public Path()
     {
-        //throw new UnsupportedOperationException("not implemented");
-        pathComponents = new LinkedList<String>();
+        throw new UnsupportedOperationException("not implemented");
     }
 
     /** Creates a new path by appending the given component to an existing path.
@@ -43,13 +38,7 @@ public class Path implements Iterable<String>, Serializable
     */
     public Path(Path path, String component)
     {
-        //throw new UnsupportedOperationException("not implemented");
-        pathComponents = new LinkedList<String>();
-        Iterator<String> iter = path.iterator();
-        while (iter.hasNext()) {
-            pathComponents.add(iter.next());
-        }
-        pathComponents.add(component);
+        throw new UnsupportedOperationException("not implemented");
     }
 
     /** Creates a new path from a path string.
@@ -66,13 +55,7 @@ public class Path implements Iterable<String>, Serializable
      */
     public Path(String path)
     {
-        //throw new UnsupportedOperationException("not implemented");
-        String[] pathComponents = path.split("/");
-        for (String component : pathComponents) {
-            if (!component.isEmpty()) {
-                this.pathComponents.add(component);
-            }
-        }
+        throw new UnsupportedOperationException("not implemented");
     }
 
     /** Returns an iterator over the components of the path.
@@ -86,8 +69,7 @@ public class Path implements Iterable<String>, Serializable
     @Override
     public Iterator<String> iterator()
     {
-        //throw new UnsupportedOperationException("not implemented");
-        return pathComponents.iterator();
+        throw new UnsupportedOperationException("not implemented");
     }
 
     /** Lists the paths of all files in a directory tree on the local
